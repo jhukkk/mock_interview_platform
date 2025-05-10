@@ -48,13 +48,14 @@ const AuthForm = ({ type }: {type: FormType}) => {
                     uid: userCredentials.user.uid,
                     name: name!,
                     email,
-                    password
+                    password,
                 });
 
                 if (!result?.success) {
                     toast.error(result?.message);
                     return;
                 }
+
                 toast.success('Account created successfully. Please sign in.');
                 router.push('/sign-in')
             } else {
@@ -68,7 +69,10 @@ const AuthForm = ({ type }: {type: FormType}) => {
                     return;
                 }
 
-                await signIn({email, idToken});
+                await signIn({
+                    email, 
+                    idToken
+                });
                 toast.success('Signed in successfully.');
                 router.push('/')
             }

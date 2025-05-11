@@ -5,133 +5,116 @@ import { db } from '@/firebase/admin';
 import { google } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 
+/**
+ * Get interviews created by the user and interviews they've taken
+ */
 export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null> {
+    if (!userId) return [];
+    
     try {
-        const interviews = await db
+        // 1. Get all original interviews created by this user
+        const createdInterviews = await db
             .collection("interviews")
             .where("userId", "==", userId)
             .orderBy("createdAt", "desc")
             .get();
-
-        const interviewData = interviews.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-        })) as Interview[];
+            
+        // 2. Get all feedback documents for this user (to find interviews they've taken)
+        const userFeedback = await db
+            .collection("feedback")
+            .where("userId", "==", userId)
+            .orderBy("createdAt", "desc")
+            .get();
+            
+        // Extract interview IDs from feedback
+        const takenInterviewIds = new Set(
+            userFeedback.docs.map(doc => doc.data().interviewId)
+        );
         
-        // Create a map to group interviews by their originalId or their own id if they're original
-        const uniqueInterviews = new Map<string, Interview>();
+        // 3. Get the interviews that this user has taken
+        const takenInterviews = takenInterviewIds.size > 0 
+            ? await db
+                .collection("interviews")
+                .where("__name__", "in", Array.from(takenInterviewIds))
+                .get()
+            : { docs: [] };
+            
+        // 4. Combine both sets of interviews, exclude duplicates
+        const allInterviewDocs = [...createdInterviews.docs, ...takenInterviews.docs];
+        const uniqueInterviews = new Map();
         
-        interviewData.forEach(interview => {
-            // For interviews the user has taken (copies)
-            if (interview.originalInterviewId) {
-                // If we haven't seen this original interview yet, or this is newer than what we have
-                if (!uniqueInterviews.has(interview.originalInterviewId) || 
-                    new Date(interview.createdAt) > new Date(uniqueInterviews.get(interview.originalInterviewId)!.createdAt)) {
-                    uniqueInterviews.set(interview.originalInterviewId, interview);
-                }
-            } 
-            // For original interviews created by the user
-            else {
-                // If we haven't seen this interview yet
-                if (!uniqueInterviews.has(interview.id)) {
-                    uniqueInterviews.set(interview.id, interview);
-                }
-            }
+        allInterviewDocs.forEach(doc => {
+            // Use interview ID as unique key
+            uniqueInterviews.set(doc.id, {
+                id: doc.id,
+                ...doc.data()
+            });
         });
         
-        // Convert the map values back to an array and sort by creation date (newest first)
-        return Array.from(uniqueInterviews.values())
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            
+        return Array.from(uniqueInterviews.values()) as Interview[];
     } catch (error) {
         console.error("Error getting user interviews:", error);
         return null;
     }
 }
 
+/**
+ * Get available interview templates this user hasn't taken yet
+ */
 export async function getLatestInterviews(params: GetLatestInterviewsParams): Promise<Interview[] | null> {
     const { userId, limit = 20 } = params;
 
     try {
-        // If no user ID provided, just return a limited set of available interviews
+        // 1. If no user ID provided, return available interviews
         if (!userId) {
-            const interviews = await db
+            const availableInterviews = await db
                 .collection("interviews")
-                .orderBy("createdAt", "desc")
                 .where("finalized", "==", true)
-                .limit(limit * 2)
+                .orderBy("createdAt", "desc")
+                .limit(limit)
                 .get();
                 
-            // Deduplicate interviews by questions similarity
-            const uniqueInterviews = deduplicateInterviews(interviews.docs.map(doc => ({
+            return availableInterviews.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data(),
-            }) as Interview));
-            
-            return uniqueInterviews.slice(0, limit);
+                ...doc.data()
+            })) as Interview[];
         }
-
-        // Get all interviews that this user has already taken (as copies)
-        const userInterviews = await db
-            .collection("interviews")
+        
+        // 2. Get all feedback for this user to determine which interviews they've taken
+        const userFeedback = await db
+            .collection("feedback")
             .where("userId", "==", userId)
             .get();
-
-        // Create a set of original interview IDs that the user has already taken
-        const takenInterviewIds = new Set<string>();
-        userInterviews.docs.forEach(doc => {
-            const data = doc.data();
-            if (data.originalInterviewId) {
-                takenInterviewIds.add(data.originalInterviewId);
-            }
-        });
+            
+        // Create a set of interview IDs the user has already taken
+        const takenInterviewIds = new Set(
+            userFeedback.docs.map(doc => doc.data().interviewId)
+        );
         
-        // Get all interviews from other users that are available to take
-        const interviews = await db
+        // 3. Get interviews this user hasn't taken and weren't created by them
+        const availableInterviews = await db
             .collection("interviews")
-            .orderBy("createdAt", "desc")
             .where("finalized", "==", true)
             .where("userId", "!=", userId)
-            .limit(limit * 3) // Fetch more to account for filtering
+            .orderBy("userId") // Required for the compound query
+            .orderBy("createdAt", "desc")
+            .limit(limit * 2) // Get more to account for filtering
             .get();
-
-        // Filter out interviews that the user has already taken, being careful to check IDs
-        let availableInterviews = interviews.docs
-            .filter(doc => {
-                // Don't include if this exact interview is in the taken set
-                return !takenInterviewIds.has(doc.id);
-            })
+            
+        // 4. Filter out interviews that the user has already taken
+        const filteredInterviews = availableInterviews.docs
+            .filter(doc => !takenInterviewIds.has(doc.id))
             .map(doc => ({
                 id: doc.id,
-                ...doc.data(),
+                ...doc.data()
             })) as Interview[];
             
-        // Additional filtering to catch any interviews with the same role/techstack
-        // that might have been missed in the first filter
-        const userInterviewsData = userInterviews.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        })) as Interview[];
+        // 5. Deduplicate by role+techstack if needed
+        const uniqueInterviews = deduplicateInterviews(filteredInterviews);
         
-        // Create a set of unique keys for interviews the user has already taken
-        const takenInterviewKeys = new Set<string>();
-        userInterviewsData.forEach(interview => {
-            const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
-            takenInterviewKeys.add(key);
-        });
-        
-        // Filter out interviews with the same role/techstack combination
-        availableInterviews = availableInterviews.filter(interview => {
-            const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
-            return !takenInterviewKeys.has(key);
-        });
-            
-        // Deduplicate the available interviews to avoid showing similar templates
-        availableInterviews = deduplicateInterviews(availableInterviews);
-        
-        return availableInterviews.slice(0, limit);
+        return uniqueInterviews.slice(0, limit);
     } catch (error) {
-        console.error("Error getting latest interviews:", error);
+        console.error("Error getting available interviews:", error);
         return null;
     }
 }
@@ -142,7 +125,7 @@ function deduplicateInterviews(interviews: Interview[]): Interview[] {
     const uniqueInterviews = new Map<string, Interview>();
     
     interviews.forEach(interview => {
-        const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
+        const key = `${interview.role.toLowerCase()}_${(interview.techstack || []).sort().join('_')}`;
         
         // If we haven't seen this combination, or this interview is newer
         if (!uniqueInterviews.has(key) || 
@@ -157,12 +140,22 @@ function deduplicateInterviews(interviews: Interview[]): Interview[] {
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
-    const interviews = await db
-        .collection("interviews")
-        .doc(id)
-        .get();
-
-    return interviews.data() as Interview | null; 
+    try {
+        const interview = await db
+            .collection("interviews")
+            .doc(id)
+            .get();
+    
+        if (!interview.exists) return null;
+        
+        return {
+            id: interview.id,
+            ...interview.data()
+        } as Interview;
+    } catch (error) {
+        console.error("Error getting interview by ID:", error);
+        return null;
+    }
 }
 
 export async function createFeedback(params: CreateFeedbackParams) {
@@ -193,93 +186,127 @@ export async function createFeedback(params: CreateFeedbackParams) {
             system: "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
         });
 
-        const feedback = await db
+        // First, check if there's already a feedback for this user and interview
+        const existingFeedback = await db
             .collection("feedback")
-            .add({
-                interviewId,
-                userId,
+            .where("interviewId", "==", interviewId)
+            .where("userId", "==", userId)
+            .get();
+            
+        let feedbackId;
+        
+        if (!existingFeedback.empty) {
+            // Update existing feedback
+            feedbackId = existingFeedback.docs[0].id;
+            await db.collection("feedback").doc(feedbackId).update({
                 totalScore,
                 categoryScores,
                 strengths,
                 areasForImprovement,
                 finalAssessment,
                 createdAt: new Date().toISOString()
-            })
+            });
+        } else {
+            // Create new feedback
+            const feedbackRef = await db
+                .collection("feedback")
+                .add({
+                    interviewId,
+                    userId,
+                    totalScore,
+                    categoryScores,
+                    strengths,
+                    areasForImprovement,
+                    finalAssessment,
+                    createdAt: new Date().toISOString()
+                });
+                
+            feedbackId = feedbackRef.id;
+        }
 
         return {
             success: true,
-            feedbackId: feedback.id 
+            feedbackId
         }
     } catch (error) {
         console.error("Error saving feedback", error);
-        return {  success: false }
+        return { success: false }
     }
 }
 
 export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null> {
     const { interviewId, userId } = params;
+    
+    if (!interviewId || !userId) return null;
 
-    const feedback = await db
-        .collection("feedback")
-        .where("interviewId", "==", interviewId)
-        .where("userId", "==", userId)
-        .orderBy("createdAt", "desc")
-        .limit(1)
-        .get();
-
-    if (feedback.empty) return null;
-
-    const feedbackDoc = feedback.docs[0];
-
-    return {
-        id: feedbackDoc.id,
-        ...feedbackDoc.data()
-    } as Feedback;
+    try {
+        const feedback = await db
+            .collection("feedback")
+            .where("interviewId", "==", interviewId)
+            .where("userId", "==", userId)
+            .orderBy("createdAt", "desc")
+            .limit(1)
+            .get();
+    
+        if (feedback.empty) return null;
+    
+        const feedbackDoc = feedback.docs[0];
+    
+        return {
+            id: feedbackDoc.id,
+            ...feedbackDoc.data()
+        } as Feedback;
+    } catch (error) {
+        console.error("Error getting feedback:", error);
+        return null;
+    }
 }
 
 export async function associateInterviewWithUser(params: {interviewId: string, userId: string}): Promise<{success: boolean, newInterviewId?: string}> {
     const { interviewId, userId } = params;
     
+    if (!interviewId || !userId) {
+        return { success: false };
+    }
+    
     try {
-        // Get the original interview
+        // Get the interview to associate with the user
         const interviewDoc = await db.collection("interviews").doc(interviewId).get();
-        const interview = interviewDoc.data();
+        if (!interviewDoc.exists) {
+            return { success: false };
+        }
         
-        if (!interview) return { success: false };
-        
-        // Check if this user already has this interview associated
-        const existingUserInterviews = await db
-            .collection("interviews")
+        // Check if user already has feedback for this interview
+        const existingFeedback = await db
+            .collection("feedback")
+            .where("interviewId", "==", interviewId)
             .where("userId", "==", userId)
-            .where("originalInterviewId", "==", interviewId)
             .limit(1)
             .get();
             
-        // If the user already has this interview, update its timestamp and return its ID
-        if (!existingUserInterviews.empty) {
-            const existingInterview = existingUserInterviews.docs[0];
-            // Update the existing interview's timestamp to make it appear as the most recent
-            await db.collection("interviews").doc(existingInterview.id).update({
-                createdAt: new Date().toISOString()
-            });
-            
+        if (!existingFeedback.empty) {
+            // User has already taken this interview, just return the interview ID
             return { 
                 success: true, 
-                newInterviewId: existingInterview.id 
+                newInterviewId: interviewId
             };
         }
         
-        // Create a copy of the interview for this user
-        const newInterviewRef = await db.collection("interviews").add({
-            ...interview,
-            userId: userId,
-            originalInterviewId: interviewId, // Track the original interview
+        // Create an initial empty feedback to track that the user has taken this interview
+        await db.collection("feedback").add({
+            interviewId,
+            userId,
+            totalScore: 0,
+            categoryScores: [],
+            strengths: [],
+            areasForImprovement: [],
+            finalAssessment: "",
             createdAt: new Date().toISOString()
         });
         
         return { 
             success: true,
-            newInterviewId: newInterviewRef.id
+            newInterviewId: interviewId
         };
     } catch (error) {
         console.error("Error associating interview with user:", error);

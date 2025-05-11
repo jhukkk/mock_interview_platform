@@ -48,6 +48,7 @@ interface InterviewCardProps {
   createdAt?: string;
   originalInterviewId?: string;
   currentUserId?: string;
+  section?: "available" | "taken";
 }
 
 interface AgentProps {

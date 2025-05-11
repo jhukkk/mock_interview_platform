@@ -10,43 +10,53 @@ import { getCurrentUser } from '@/lib/actions/auth.action';
 
 const InterviewCard = async ({ 
     id, 
-    userId, // This is the owner of the interview
     role, 
     type, 
     techstack, 
     createdAt,
-    originalInterviewId,
-    currentUserId, // Optional - can be passed from parent to override
+    currentUserId, // Optional - can be passed from parent
+    section = "available" // Either "available" or "taken"
  }: InterviewCardProps) => {
     // Get the current user if currentUserId wasn't provided
     const user = currentUserId ? { id: currentUserId } : await getCurrentUser();
     
-    // Use current user's ID for feedback lookup, not the interview owner's ID
-    const userIdForFeedback = user?.id || userId;
-    
-    // Try to get feedback for this interview ID
-    let feedback = userIdForFeedback && id ? await getFeedbackByInterviewId({ interviewId: id, userId: userIdForFeedback }) : null;
-    
-    // If no feedback found and this is a copied interview, try the original interview ID
-    if (!feedback && userIdForFeedback && originalInterviewId) {
-        feedback = await getFeedbackByInterviewId({ interviewId: originalInterviewId, userId: userIdForFeedback });
+    // Get feedback for this interview if the current user has taken it
+    let feedback = null;
+    try {
+        if (user?.id && id) {
+            feedback = await getFeedbackByInterviewId({ 
+                interviewId: id, 
+                userId: user.id 
+            });
+        }
+    } catch (error) {
+        console.error("Error fetching feedback:", error);
     }
     
-    const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
-    const formattedDate = dayjs(feedback?.createdAt || createdAt || Date.now()).format('MMM D, YYYY');
+    const normalizedType = /mix/gi.test(type || '') ? 'Mixed' : type;
+    const formattedDate = dayjs(feedback?.createdAt || createdAt || new Date()).format('MMM D, YYYY');
     
-    // Determine if this is the current user's own interview (they created it or took it)
-    const isUserOwnInterview = user?.id === userId;
+    // Determine if the user has taken this interview (has feedback)
+    const hasTaken = feedback !== null;
+    
+    // Determine button text and link based on context
+    let buttonText = "View Interview";
+    let buttonLink = `/interview/${id}`;
+    
+    if (section === "taken" && hasTaken) {
+        buttonText = "Check Feedback";
+        buttonLink = `/interview/${id}/feedback`;
+    }
     
     return (
         <div className='card-border w-[320px] max-sm:w-full min-h-80'>
             <div className='card-interview py-5'>
                 <div className='absolute top-0 right-0 w-fit px-5 py-2.5 rounded-bl-lg interview-type-badge'>
-                    <p className='badge-text'>{normalizedType}</p>
+                    <p className='badge-text'>{normalizedType || 'Interview'}</p>
                 </div>
                 <Image src={getRandomInterviewCover()} alt='cover image' width={70} height={70} className='rounded-full object-fit size-[70px]' />
                 <h3 className='mt-3 capitalize'>
-                    {role} Interview
+                    {role || 'General'} Interview
                 </h3>
                 <div className='flex flex-row gap-4 mt-2'>
                     <div className='flex flex-row gap-2'>
@@ -56,21 +66,21 @@ const InterviewCard = async ({
 
                     <div className='flex flex-row gap-2 items-center'>
                         <Image src="/star.svg" alt="star" width={20} height={20} />
-                        <p>{isUserOwnInterview && feedback?.totalScore !== undefined ? `${feedback.totalScore}/100` : '---/100'}</p>
+                        <p>{hasTaken && feedback && (feedback.totalScore !== undefined) ? `${feedback.totalScore}/100` : '---/100'}</p>
                     </div>
                 </div>
                 <p className='line-clamp-2 mt-3'>
-                    {isUserOwnInterview && feedback !== null && feedback.finalAssessment 
+                    {hasTaken && feedback && feedback.finalAssessment 
                         ? feedback.finalAssessment 
                         : "Take this interview to practice and improve your skills."}
                 </p>
             </div>
 
             <div className='flex flex-row justify-between items-center px-4 py-3'>
-                <DisplayTechIcons techStack={techstack} />
+                <DisplayTechIcons techStack={techstack || []} />
                 <Button className='btn-primary'>
-                    <Link href={feedback !== null && isUserOwnInterview ? `/interview/${id}/feedback` : `/interview/${id}`}>
-                        {feedback !== null && isUserOwnInterview ? "Check feedback" : "View Interview"}
+                    <Link href={buttonLink}>
+                        {buttonText}
                     </Link>
                 </Button>
             </div>

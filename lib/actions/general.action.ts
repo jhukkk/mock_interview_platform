@@ -1,3 +1,5 @@
+'use server';
+
 import { feedbackSchema } from '@/constants';
 import { db } from '@/firebase/admin';
 import { google } from '@ai-sdk/google';
@@ -56,7 +58,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
                 structuredOutputs: false,
             }),
             schema: feedbackSchema,
-            prompt: `You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
+            prompt: `You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out. If the candidate doesn't say anything, give 0.
             Transcript:
             ${formattedTranscript}
             
@@ -89,5 +91,26 @@ export async function createFeedback(params: CreateFeedbackParams) {
         }
     } catch (error) {
         console.error("Error saving feedback", error);
+        return {  success: false }
     }
+}
+
+export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null> {
+    const { interviewId, userId } = params;
+
+    const feedback = await db
+        .collection("feedback")
+        .where("interviewId", "==", interviewId)
+        .where("userId", "==", userId)
+        .limit(1)
+        .get();
+
+    if (feedback.empty) return null;
+
+    const feedbackDoc = feedback.docs[0];
+
+    return {
+        id: feedbackDoc.id,
+        ...feedbackDoc.data()
+    } as Feedback;
 }

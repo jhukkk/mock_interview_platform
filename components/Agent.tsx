@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { vapi } from '@/lib/vapi.sdk';
 import { interviewer } from '@/constants';
+import { createFeedback } from '@/lib/actions/general.action';
 
 enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -24,8 +25,6 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
-
-    const lastMessage = messages[messages.length - 1];
 
     useEffect(() => {
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
@@ -64,10 +63,11 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
         console.log("Generate feedback here.");
 
         //TODO: Create a server action that generates a feedback
-        const { success, id } = {
-            success: true,
-            id: "feedback-id"
-        }
+        const { success, feedbackId: id } = await createFeedback({
+            interviewId: interviewId!,
+            userId: userId!,
+            transcript: messages
+        });
 
         if (success && id) {
             router.push(`/interview/${interviewId}/feedback`);
@@ -132,7 +132,7 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
 
                 <div className='card-border'>
                     <div className='card-content'>
-                        <Image src="/user-avater.png" alt="user avatar" width={540} height={540} className='rounded-full object-cover size-[120px]'/>
+                        <Image src="/user-avatar.png" alt="user avatar" width={540} height={540} className='rounded-full object-cover size-[120px]'/>
                         <h3>{userName}</h3>
                     </div>
                 </div>

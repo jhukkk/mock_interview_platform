@@ -8,13 +8,15 @@ import { getInterviewsByUserId, getLatestInterviews } from '@/lib/actions/genera
 
 const page = async () => {
   const user = await getCurrentUser();
-  const [userInterviews, allInterviews] = await Promise.all([
-    await getInterviewsByUserId(user?.id!), 
-    await getLatestInterviews({ userId: user?.id! })
-  ]);
+  
+  // Get user's own interviews (ones they've taken)
+  const userInterviews = user?.id ? await getInterviewsByUserId(user.id) : [];
+  
+  // Get available interviews to take (not created by the user and not already taken)
+  const availableInterviews = user?.id ? await getLatestInterviews({ userId: user.id }) : [];
 
-  const hasPastInterviews = userInterviews?.length! > 0;
-  const hasUpcomingInterviews = allInterviews?.length! > 0;
+  const hasPastInterviews = userInterviews && userInterviews.length > 0;
+  const hasAvailableInterviews = availableInterviews && availableInterviews.length > 0;
 
   return (
     <>
@@ -35,7 +37,7 @@ const page = async () => {
         <div className='interviews-section'>
           {
             hasPastInterviews ? (
-              userInterviews.map((interview) => (
+              userInterviews?.map((interview) => (
                 <InterviewCard {...interview} key={interview.id} />
               ))
             ) : (
@@ -50,8 +52,8 @@ const page = async () => {
 
         <div className='interviews-section'>
           {
-            hasUpcomingInterviews ? (
-              allInterviews?.map((interview) => (
+            hasAvailableInterviews ? (
+              availableInterviews?.map((interview) => (
                 <InterviewCard {...interview} key={interview.id} />
               ))
             ) : (

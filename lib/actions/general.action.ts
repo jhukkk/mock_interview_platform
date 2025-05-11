@@ -6,37 +6,69 @@ import { google } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 
 export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null> {
-    const interviews = await db
-        .collection("interviews")
-        .where("userId", "==", userId)
-        .orderBy("createdAt", "desc")
-        .get();
+    try {
+        const interviews = await db
+            .collection("interviews")
+            .where("userId", "==", userId)
+            .orderBy("createdAt", "desc")
+            .get();
 
-    return interviews.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-    })) as Interview[];
+        const interviewData = interviews.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        })) as Interview[];
+        
+        // Create a map to group interviews by their originalId or their own id if they're original
+        const uniqueInterviews = new Map<string, Interview>();
+        
+        interviewData.forEach(interview => {
+            // For interviews the user has taken (copies)
+            if (interview.originalInterviewId) {
+                // If we haven't seen this original interview yet, or this is newer than what we have
+                if (!uniqueInterviews.has(interview.originalInterviewId) || 
+                    new Date(interview.createdAt) > new Date(uniqueInterviews.get(interview.originalInterviewId)!.createdAt)) {
+                    uniqueInterviews.set(interview.originalInterviewId, interview);
+                }
+            } 
+            // For original interviews created by the user
+            else {
+                // If we haven't seen this interview yet
+                if (!uniqueInterviews.has(interview.id)) {
+                    uniqueInterviews.set(interview.id, interview);
+                }
+            }
+        });
+        
+        // Convert the map values back to an array and sort by creation date (newest first)
+        return Array.from(uniqueInterviews.values())
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            
+    } catch (error) {
+        console.error("Error getting user interviews:", error);
+        return null;
+    }
 }
 
 export async function getLatestInterviews(params: GetLatestInterviewsParams): Promise<Interview[] | null> {
     const { userId, limit = 20 } = params;
 
     try {
-        // First, get all interviews that are available to take
-        const interviews = await db
-            .collection("interviews")
-            .orderBy("createdAt", "desc")
-            .where("finalized", "==", true)
-            .where("userId", "!=", userId)
-            .limit(limit)
-            .get();
-
-        // If no user ID provided, return all interviews
+        // If no user ID provided, just return a limited set of available interviews
         if (!userId) {
-            return interviews.docs.map((doc) => ({
+            const interviews = await db
+                .collection("interviews")
+                .orderBy("createdAt", "desc")
+                .where("finalized", "==", true)
+                .limit(limit * 2)
+                .get();
+                
+            // Deduplicate interviews by questions similarity
+            const uniqueInterviews = deduplicateInterviews(interviews.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-            })) as Interview[];
+            }) as Interview));
+            
+            return uniqueInterviews.slice(0, limit);
         }
 
         // Get all interviews that this user has already taken (as copies)
@@ -53,20 +85,75 @@ export async function getLatestInterviews(params: GetLatestInterviewsParams): Pr
                 takenInterviewIds.add(data.originalInterviewId);
             }
         });
+        
+        // Get all interviews from other users that are available to take
+        const interviews = await db
+            .collection("interviews")
+            .orderBy("createdAt", "desc")
+            .where("finalized", "==", true)
+            .where("userId", "!=", userId)
+            .limit(limit * 3) // Fetch more to account for filtering
+            .get();
 
-        // Filter out interviews that the user has already taken
-        const availableInterviews = interviews.docs
-            .filter(doc => !takenInterviewIds.has(doc.id))
+        // Filter out interviews that the user has already taken, being careful to check IDs
+        let availableInterviews = interviews.docs
+            .filter(doc => {
+                // Don't include if this exact interview is in the taken set
+                return !takenInterviewIds.has(doc.id);
+            })
             .map(doc => ({
                 id: doc.id,
                 ...doc.data(),
             })) as Interview[];
-
-        return availableInterviews;
+            
+        // Additional filtering to catch any interviews with the same role/techstack
+        // that might have been missed in the first filter
+        const userInterviewsData = userInterviews.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as Interview[];
+        
+        // Create a set of unique keys for interviews the user has already taken
+        const takenInterviewKeys = new Set<string>();
+        userInterviewsData.forEach(interview => {
+            const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
+            takenInterviewKeys.add(key);
+        });
+        
+        // Filter out interviews with the same role/techstack combination
+        availableInterviews = availableInterviews.filter(interview => {
+            const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
+            return !takenInterviewKeys.has(key);
+        });
+            
+        // Deduplicate the available interviews to avoid showing similar templates
+        availableInterviews = deduplicateInterviews(availableInterviews);
+        
+        return availableInterviews.slice(0, limit);
     } catch (error) {
         console.error("Error getting latest interviews:", error);
         return null;
     }
+}
+
+// Helper function to deduplicate interviews based on role and techstack
+function deduplicateInterviews(interviews: Interview[]): Interview[] {
+    // Use a map to track unique interviews by role + techstack combination
+    const uniqueInterviews = new Map<string, Interview>();
+    
+    interviews.forEach(interview => {
+        const key = `${interview.role.toLowerCase()}_${interview.techstack.sort().join('_')}`;
+        
+        // If we haven't seen this combination, or this interview is newer
+        if (!uniqueInterviews.has(key) || 
+            new Date(interview.createdAt) > new Date(uniqueInterviews.get(key)!.createdAt)) {
+            uniqueInterviews.set(key, interview);
+        }
+    });
+    
+    // Convert the map values back to an array and sort by creation date (newest first)
+    return Array.from(uniqueInterviews.values())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
@@ -168,11 +255,17 @@ export async function associateInterviewWithUser(params: {interviewId: string, u
             .limit(1)
             .get();
             
-        // If the user already has this interview, return its ID
+        // If the user already has this interview, update its timestamp and return its ID
         if (!existingUserInterviews.empty) {
+            const existingInterview = existingUserInterviews.docs[0];
+            // Update the existing interview's timestamp to make it appear as the most recent
+            await db.collection("interviews").doc(existingInterview.id).update({
+                createdAt: new Date().toISOString()
+            });
+            
             return { 
                 success: true, 
-                newInterviewId: existingUserInterviews.docs[0].id 
+                newInterviewId: existingInterview.id 
             };
         }
         

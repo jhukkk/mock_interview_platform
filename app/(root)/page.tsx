@@ -38,7 +38,7 @@ const page = async () => {
           {
             hasPastInterviews ? (
               userInterviews?.map((interview) => (
-                <InterviewCard {...interview} key={interview.id} />
+                <InterviewCard {...interview} key={interview.id} currentUserId={user?.id} />
               ))
             ) : (
               <p>You haven&apos;t taken any interviews yet.</p>
@@ -54,7 +54,7 @@ const page = async () => {
           {
             hasAvailableInterviews ? (
               availableInterviews?.map((interview) => (
-                <InterviewCard {...interview} key={interview.id} />
+                <InterviewCard {...interview} key={interview.id} currentUserId={user?.id} />
               ))
             ) : (
               <p>There are no new interviews available.</p>

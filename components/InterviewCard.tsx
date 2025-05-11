@@ -6,26 +6,38 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 import DisplayTechIcons from './DisplayTechIcons';
 import { getFeedbackByInterviewId } from '@/lib/actions/general.action';
+import { getCurrentUser } from '@/lib/actions/auth.action';
 
 const InterviewCard = async ({ 
     id, 
-    userId, 
+    userId, // This is the owner of the interview
     role, 
     type, 
     techstack, 
     createdAt,
     originalInterviewId,
+    currentUserId, // Optional - can be passed from parent to override
  }: InterviewCardProps) => {
+    // Get the current user if currentUserId wasn't provided
+    const user = currentUserId ? { id: currentUserId } : await getCurrentUser();
+    
+    // Use current user's ID for feedback lookup, not the interview owner's ID
+    const userIdForFeedback = user?.id || userId;
+    
     // Try to get feedback for this interview ID
-    let feedback = userId && id ? await getFeedbackByInterviewId({ interviewId: id, userId }) : null;
+    let feedback = userIdForFeedback && id ? await getFeedbackByInterviewId({ interviewId: id, userId: userIdForFeedback }) : null;
     
     // If no feedback found and this is a copied interview, try the original interview ID
-    if (!feedback && userId && originalInterviewId) {
-        feedback = await getFeedbackByInterviewId({ interviewId: originalInterviewId, userId });
+    if (!feedback && userIdForFeedback && originalInterviewId) {
+        feedback = await getFeedbackByInterviewId({ interviewId: originalInterviewId, userId: userIdForFeedback });
     }
     
     const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
     const formattedDate = dayjs(feedback?.createdAt || createdAt || Date.now()).format('MMM D, YYYY');
+    
+    // Determine if this is the current user's own interview (they created it or took it)
+    const isUserOwnInterview = user?.id === userId;
+    
     return (
         <div className='card-border w-[320px] max-sm:w-full min-h-80'>
             <div className='card-interview py-5'>
@@ -44,19 +56,21 @@ const InterviewCard = async ({
 
                     <div className='flex flex-row gap-2 items-center'>
                         <Image src="/star.svg" alt="star" width={20} height={20} />
-                        <p>{feedback?.totalScore ?? '---'}/100</p>
+                        <p>{isUserOwnInterview && feedback?.totalScore !== undefined ? `${feedback.totalScore}/100` : '---/100'}</p>
                     </div>
                 </div>
                 <p className='line-clamp-2 mt-3'>
-                    {feedback?.finalAssessment || "You haven't taken the interview yet. Take it now to improve your skills."}
+                    {isUserOwnInterview && feedback !== null && feedback.finalAssessment 
+                        ? feedback.finalAssessment 
+                        : "Take this interview to practice and improve your skills."}
                 </p>
             </div>
 
             <div className='flex flex-row justify-between items-center px-4 py-3'>
                 <DisplayTechIcons techStack={techstack} />
                 <Button className='btn-primary'>
-                    <Link href={feedback? `/interview/${id}/feedback` : `/interview/${id}`}>
-                        {feedback? "Check feedback" : "View Interview"}
+                    <Link href={feedback !== null && isUserOwnInterview ? `/interview/${id}/feedback` : `/interview/${id}`}>
+                        {feedback !== null && isUserOwnInterview ? "Check feedback" : "View Interview"}
                     </Link>
                 </Button>
             </div>

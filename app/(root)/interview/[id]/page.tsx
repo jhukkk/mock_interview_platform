@@ -19,13 +19,13 @@ const page = async ({ params }: RouteParams) => {
             <div className='flex flex-row gap-4 justify-between'>
                 <div className='flex flex-row gap-4 items-center max-sm:flex-col'>
                     <div className='flex flex-row gap-4 items-center'>
-                        <Image src={getRandomInterviewCover()} alt="cover-image" width={40} height={40} className='rounded-full object-cover size-[40px]' />
+                        <Image src={getRandomInterviewCover()} alt="cover-image" width={30} height={30} className='rounded-full object-cover size-[30px]' />
                         <h3 className='capitalize'>{interview.role} Interview</h3>  
                     </div>
 
                     <DisplayTechIcons techStack={interview.techstack} />
                 </div>
-                <p className='bg-dark-200 px-4 py-2 rounded-lg h-fit capitalize'>{interview.type}</p>
+                <p className='interview-type-badge px-5 py-2.5 rounded-lg h-fit capitalize'>{interview.type}</p>
             </div>
 
             <Agent 

@@ -88,17 +88,19 @@ const page = async ({ params }: RouteParams) => {
         </div>
 
         <div className='buttons'>
-          <Button className='btn-secondary flex-1'>
-            <Link href="/" className='flex w-full justify-center'>
-              <p className='text-sm font-semibold text-primary-200 text-center'>
+          <Button className='flex-1 py-2.5 px-6 bg-white border-2 border-gray-300 hover:bg-gray-50 rounded-lg'>
+            <Link href="/" className='flex w-full justify-center items-center gap-2'>
+              <Image src="/home.svg" alt="home" width={18} height={18} /> 
+              <p className='text-sm font-bold text-gray-800 text-center'>
                 Back to dashboard
               </p>
             </Link>
           </Button>
 
-          <Button className="btn-primary flex-1">
-            <Link href={`/interview/${id}`} className="flex w-full justify-center">
-              <p className="text-sm font-semibold text-black text-center">
+          <Button className="btn-primary flex-1 py-2.5 px-6">
+            <Link href={`/interview/${id}`} className="flex w-full justify-center items-center gap-2">
+              <Image src="/ai-avatar.png" alt="AI" width={22} height={22} />
+              <p className="text-sm font-bold text-white text-center">
                 Retake Interview
               </p>
             </Link>

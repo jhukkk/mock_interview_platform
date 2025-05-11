@@ -123,9 +123,9 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
         <>
             <div className='call-view'>
                 <div className='card-interviewer'>
-                    <div className='avatar'>
-                        <Image src="/ai-avatar.png" alt="vapi" width={65} height={54} className='object-cover' />
-                        {isSpeaking && <span className='animate-speak' />}
+                    <div className='flex items-center justify-center relative'>
+                        <Image src="/ai-avatar.png" alt="vapi" width={120} height={120} className='object-contain' />
+                        {isSpeaking && <span className='absolute inline-flex animate-ping rounded-full bg-primary-200 opacity-75 size-[110px]'/>}
                     </div>
                     <h3>AI Interviewer</h3>
                 </div>

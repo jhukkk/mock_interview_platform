@@ -14,12 +14,20 @@ const InterviewCard = async ({
     type, 
     techstack, 
     createdAt,
+    originalInterviewId,
  }: InterviewCardProps) => {
-    const feedback = userId && id ? await getFeedbackByInterviewId({ interviewId: id, userId }) : null;
+    // Try to get feedback for this interview ID
+    let feedback = userId && id ? await getFeedbackByInterviewId({ interviewId: id, userId }) : null;
+    
+    // If no feedback found and this is a copied interview, try the original interview ID
+    if (!feedback && userId && originalInterviewId) {
+        feedback = await getFeedbackByInterviewId({ interviewId: originalInterviewId, userId });
+    }
+    
     const normalizedType = /mix/gi.test(type) ? 'Mixed' : type;
     const formattedDate = dayjs(feedback?.createdAt || createdAt || Date.now()).format('MMM D, YYYY');
     return (
-        <div className='card-border w-[360px] max-sm:w-full min-h-80'>
+        <div className='card-border w-[320px] max-sm:w-full min-h-80'>
             <div className='card-interview py-5'>
                 <div className='absolute top-0 right-0 w-fit px-5 py-2.5 rounded-bl-lg interview-type-badge'>
                     <p className='badge-text'>{normalizedType}</p>

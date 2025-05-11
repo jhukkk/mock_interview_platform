@@ -35,7 +35,7 @@ const page = async () => {
         <div className='interviews-section'>
           {
             hasPastInterviews ? (
-              userInterviews?.map((interview) => (
+              userInterviews.map((interview) => (
                 <InterviewCard {...interview} key={interview.id} />
               ))
             ) : (

@@ -21,18 +21,52 @@ export async function getInterviewsByUserId(userId: string): Promise<Interview[]
 export async function getLatestInterviews(params: GetLatestInterviewsParams): Promise<Interview[] | null> {
     const { userId, limit = 20 } = params;
 
-    const interviews = await db
-        .collection("interviews")
-        .orderBy("createdAt", "desc")
-        .where("finalized", "==", true)
-        .where("userId", "!=", userId)
-        .limit(limit)
-        .get();
+    try {
+        // First, get all interviews that are available to take
+        const interviews = await db
+            .collection("interviews")
+            .orderBy("createdAt", "desc")
+            .where("finalized", "==", true)
+            .where("userId", "!=", userId)
+            .limit(limit)
+            .get();
 
-    return interviews.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-    })) as Interview[];
+        // If no user ID provided, return all interviews
+        if (!userId) {
+            return interviews.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Interview[];
+        }
+
+        // Get all interviews that this user has already taken (as copies)
+        const userInterviews = await db
+            .collection("interviews")
+            .where("userId", "==", userId)
+            .get();
+
+        // Create a set of original interview IDs that the user has already taken
+        const takenInterviewIds = new Set<string>();
+        userInterviews.docs.forEach(doc => {
+            const data = doc.data();
+            if (data.originalInterviewId) {
+                takenInterviewIds.add(data.originalInterviewId);
+            }
+        });
+
+        // Filter out interviews that the user has already taken
+        const availableInterviews = interviews.docs
+            .filter(doc => !takenInterviewIds.has(doc.id))
+            .map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+            })) as Interview[];
+
+        return availableInterviews;
+    } catch (error) {
+        console.error("Error getting latest interviews:", error);
+        return null;
+    }
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
@@ -102,6 +136,7 @@ export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdP
         .collection("feedback")
         .where("interviewId", "==", interviewId)
         .where("userId", "==", userId)
+        .orderBy("createdAt", "desc")
         .limit(1)
         .get();
 
@@ -113,4 +148,48 @@ export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdP
         id: feedbackDoc.id,
         ...feedbackDoc.data()
     } as Feedback;
+}
+
+export async function associateInterviewWithUser(params: {interviewId: string, userId: string}): Promise<{success: boolean, newInterviewId?: string}> {
+    const { interviewId, userId } = params;
+    
+    try {
+        // Get the original interview
+        const interviewDoc = await db.collection("interviews").doc(interviewId).get();
+        const interview = interviewDoc.data();
+        
+        if (!interview) return { success: false };
+        
+        // Check if this user already has this interview associated
+        const existingUserInterviews = await db
+            .collection("interviews")
+            .where("userId", "==", userId)
+            .where("originalInterviewId", "==", interviewId)
+            .limit(1)
+            .get();
+            
+        // If the user already has this interview, return its ID
+        if (!existingUserInterviews.empty) {
+            return { 
+                success: true, 
+                newInterviewId: existingUserInterviews.docs[0].id 
+            };
+        }
+        
+        // Create a copy of the interview for this user
+        const newInterviewRef = await db.collection("interviews").add({
+            ...interview,
+            userId: userId,
+            originalInterviewId: interviewId, // Track the original interview
+            createdAt: new Date().toISOString()
+        });
+        
+        return { 
+            success: true,
+            newInterviewId: newInterviewRef.id
+        };
+    } catch (error) {
+        console.error("Error associating interview with user:", error);
+        return { success: false };
+    }
 }

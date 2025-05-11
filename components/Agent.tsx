@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { vapi } from '@/lib/vapi.sdk';
 import { interviewer } from '@/constants';
-import { createFeedback } from '@/lib/actions/general.action';
+import { createFeedback, associateInterviewWithUser } from '@/lib/actions/general.action';
 
 enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -62,15 +62,29 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
     const handleGenerateFeedback = async (messages: SavedMessage[]) => {
         console.log("Generate feedback here.");
 
-        //TODO: Create a server action that generates a feedback
-        const { success, feedbackId: id } = await createFeedback({
-            interviewId: interviewId!,
+        // Associate the interview with the current user
+        let targetInterviewId = interviewId;
+        if (interviewId && userId) {
+            const result = await associateInterviewWithUser({
+                interviewId: interviewId,
+                userId: userId
+            });
+            
+            // If we got a new interview ID, use it for the feedback
+            if (result.success && result.newInterviewId) {
+                targetInterviewId = result.newInterviewId;
+            }
+        }
+
+        // Create feedback
+        const { success, feedbackId } = await createFeedback({
+            interviewId: targetInterviewId!,
             userId: userId!,
             transcript: messages
         });
 
-        if (success && id) {
-            router.push(`/interview/${interviewId}/feedback`);
+        if (success && feedbackId) {
+            router.push(`/interview/${targetInterviewId}/feedback`);
         } else {
             console.log("Error saving feedback.");
             router.push("/");
@@ -85,7 +99,7 @@ const Agent = ({userName, userId, type, interviewId, questions }: AgentProps) =>
                 handleGenerateFeedback(messages);
             }
         }
-    }, [messages, callStatus, type, userId]);
+    }, [callStatus, type, messages, interviewId, userId, router]);
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);

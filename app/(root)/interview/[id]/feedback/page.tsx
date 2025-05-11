@@ -14,10 +14,19 @@ const page = async ({ params }: RouteParams) => {
     const interview = await getInterviewById(id);
     if (!interview) redirect("/");
 
-    const feedback = await getFeedbackByInterviewId({
+    // Try to get feedback for this interview ID
+    let feedback = user?.id ? await getFeedbackByInterviewId({
       interviewId: id,
-      userId: user?.id!,
-    });
+      userId: user.id,
+    }) : null;
+    
+    // If no feedback found and this is a copied interview, try the original interview ID
+    if (!feedback && interview.originalInterviewId && user?.id) {
+      feedback = await getFeedbackByInterviewId({
+        interviewId: interview.originalInterviewId,
+        userId: user.id,
+      });
+    }
 
     console.log(feedback);
     return (

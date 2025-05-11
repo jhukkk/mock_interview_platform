@@ -10,12 +10,15 @@ An AI-powered mock interview platform that helps job seekers practice technical 
 
 ## Features
 
-- **AI-Powered Interviews**: Practice with a realistic AI interviewer that adapts to your responses
+- **AI-Powered Interviews**: Practice with a realistic AI interviewer using Gemini 2.0 Flash and Vapi AI for natural conversational flow
 - **Diverse Interview Types**: Choose from behavioral, technical, or mixed-format interviews
 - **Tech Stack Selection**: Practice interviews targeted to specific technologies (React, Node.js, Python, etc.)
-- **Instant Feedback**: Receive comprehensive feedback and scoring after each interview
-- **Performance Tracking**: Monitor your progress across multiple practice sessions
-- **User-Friendly Interface**: Clean, intuitive design with responsive layout for all devices
+- **Responsive Design**: Mobile-first approach with fluid layout on all screen sizes
+- **Serverless Backend**: Built on Next.js API routes for scalable interview processing
+- **Custom Firebase Integration**: Secure authentication and Firestore database for user data management
+- **Real-time Updates**: Immediate feedback generation and storage after interview completion
+- **Data Deduplication**: Intelligent handling of repeated interview sessions while maintaining performance history
+- **Optimized Performance**: Efficient data fetching patterns for smooth user experience
 
 ## Demo Video
 
@@ -30,15 +33,6 @@ An AI-powered mock interview platform that helps job seekers practice technical 
 - **Database**: Firebase (Firestore)
 - **Authentication**: Firebase Authentication
 - **Deployment**: Vercel
-
-## Implementation Highlights
-
-- **Real-time AI Interviews**: Using Gemini 2.0 for natural conversational flow
-- **State Management**: Implemented robust data handling between interview states
-- **Responsive Design**: Mobile-first approach with fluid layout on all screen sizes
-- **Feedback Algorithm**: Sophisticated scoring system based on multiple performance criteria
-- **Optimized Performance**: Efficient data fetching patterns for smooth user experience
-- **Unique Interview Display**: Solved UI challenges for displaying interview cards
 
 ## Screenshots
 

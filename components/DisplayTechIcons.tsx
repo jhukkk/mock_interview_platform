@@ -16,8 +16,8 @@ const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
         <div 
           key={tech} 
           className={cn(
-            'relative group bg-gray-200 rounded-full p-1.5 flex items-center justify-center', 
-            index >= 1 && '-ml-2'
+            'relative group bg-amber-100 rounded-full p-2 flex items-center justify-center border border-amber-200', 
+            index >= 1 && '-ml-3'
           )}
           title={tech}
         >
@@ -26,15 +26,15 @@ const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
           <object 
             type="image/svg+xml"
             data={url} 
-            width="16" 
-            height="16"
+            width="24" 
+            height="24"
             className="pointer-events-none"
           >
             <img 
               src="/tech.svg" 
               alt={tech} 
-              width="16" 
-              height="16"
+              width="24" 
+              height="24"
             />
           </object>
         </div>

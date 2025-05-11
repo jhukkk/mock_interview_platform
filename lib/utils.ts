@@ -31,9 +31,11 @@ const checkIconExists = async (url: string) => {
 export const getTechLogos = async (techArray: string[]) => {
   const logoURLs = techArray.map((tech) => {
     const normalized = normalizeTechName(tech);
+    const url = normalized ? `/icons/${normalized}-original.svg` : "/tech.svg";
+    console.log(`Tech: ${tech}, Normalized: ${normalized}, URL: ${url}`);
     return {
       tech,
-      url: normalized ? `/icons/${normalized}-original.svg` : "/tech.svg",
+      url,
     };
   });
 

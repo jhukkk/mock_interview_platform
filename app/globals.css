@@ -6,10 +6,10 @@
 
 @theme {
   /* Updated colors based on the crypto platform */
-  --color-success-100: #4CAF50; /* Green */
-  --color-success-200: #43A047; /* Darker green */
-  --color-destructive-100: #EF5350; /* Light red */
-  --color-destructive-200: #E53935; /* Darker red */
+  --color-success-100: #22c55e; /* More vibrant green */
+  --color-success-200: #16a34a; /* Darker vibrant green */
+  --color-destructive-100: #ef4444; /* More vibrant red */
+  --color-destructive-200: #dc2626; /* Darker vibrant red */
 
   --color-primary-100: #F5F7FA; /* Very light gray with blue tint */
   --color-primary-200: #2D3748; /* Dark blue-gray */
@@ -165,11 +165,11 @@
 @layer components {
   /* Updated button styles to match the crypto platform */
   .btn-call {
-    @apply inline-block px-7 py-3 font-medium text-sm leading-5 text-white transition-colors duration-150 bg-success-100 border border-transparent rounded-lg focus:outline-none focus:shadow-md active:bg-success-200 hover:bg-success-200 min-w-28 cursor-pointer items-center justify-center overflow-visible;
+    @apply inline-block px-8 py-3.5 font-semibold text-base leading-6 text-white transition-colors duration-150 bg-success-100 border border-transparent rounded-2xl focus:outline-none focus:shadow-md active:bg-success-200 hover:bg-success-200 min-w-32 cursor-pointer items-center justify-center overflow-visible;
   }
 
   .btn-disconnect {
-    @apply inline-block px-7 py-3 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-destructive-100 border border-transparent rounded-lg focus:outline-none focus:shadow-md active:bg-destructive-200 hover:bg-destructive-200 min-w-28;
+    @apply inline-block px-8 py-3.5 text-base font-semibold leading-6 text-white transition-colors duration-150 bg-destructive-100 border border-transparent rounded-2xl focus:outline-none focus:shadow-md active:bg-destructive-200 hover:bg-destructive-200 min-w-32;
   }
 
   .btn-upload {
@@ -197,7 +197,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     
     .badge-text {
-      @apply text-base font-medium capitalize;
+      @apply text-base font-semibold capitalize text-black;
     }
     
     &:hover {
@@ -248,17 +248,6 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transition: all 0.3s ease;
     }
-    
-    .card-interviewer::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #F6E05E, #ECC94B);
-      opacity: 0.9;
-    }
 
     .avatar {
       @apply z-10 flex items-center justify-center bg-gray-100 rounded-full size-[120px] relative border border-gray-200;
@@ -284,17 +273,6 @@
     .card-content:hover {
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       transition: all 0.3s ease;
-    }
-    
-    .card-content::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #F6E05E, #ECC94B);
-      opacity: 0.9;
     }
   }
 
@@ -394,10 +372,11 @@
 }
 
 @utility interview-type-badge {
-  background: #F5F7FA; /* Very light gray */
-  color: #1A202C; /* Dark text color */
-  font-weight: 500;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #FFFCF5; /* Warm milk white */
+  color: #000000; /* Black text color */
+  font-weight: 600;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 @utility flex-center {

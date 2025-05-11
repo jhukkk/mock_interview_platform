@@ -23,7 +23,7 @@ const page = async ({ params }: RouteParams) => {
     return (
       <section className='section-feedback'>
         <div className='flex flex-row justify-center'>
-          <h1 className='test-4xl font-semibold'>
+          <h1 className='text-4xl font-semibold'>
             Feedback on the Interview -{" "}
             <span className='capitalize'>{interview.role}</span> Interview
           </h1>

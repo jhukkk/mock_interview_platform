@@ -197,7 +197,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     
     .badge-text {
-      @apply text-base font-semibold capitalize text-black;
+      @apply text-base font-semibold capitalize text-white;
     }
     
     &:hover {
@@ -372,8 +372,8 @@
 }
 
 @utility interview-type-badge {
-  background: #FFFCF5; /* Warm milk white */
-  color: #000000; /* Black text color */
+  background: #1A202C; /* Dark background matching transcript */
+  color: #FFFFFF; /* White text color */
   font-weight: 600;
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);

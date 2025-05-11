@@ -15,7 +15,7 @@ const normalizeTechName = (tech: string) => {
     "java": "java",
     "python": "python",
     "sql": "postgresql", // Using postgresql icon for SQL
-    "django": "django",
+    "django": "djangorest",
     "linux": "linux"
   };
   

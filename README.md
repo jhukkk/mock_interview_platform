@@ -40,23 +40,6 @@ Whether you're preparing for a technical role, brushing up on behavioral questio
 | **Authentication** | Firebase Authentication |
 | **Deployment** | Vercel |
 
-## 📱 Screenshots
-
-<div align="center">
-  <!-- Placeholder for your screenshots - replace with actual images -->
-  <p><em>Screenshots coming soon...</em></p>
-  
-  <!-- Example layout for when you add screenshots
-  <img src="/path/to/homepage.jpg" alt="Homepage" width="45%">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="/path/to/interview.jpg" alt="Interview Session" width="45%">
-  <br><br>
-  <img src="/path/to/feedback.jpg" alt="Feedback Screen" width="45%">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="/path/to/dashboard.jpg" alt="User Dashboard" width="45%">
-  -->
-</div>
-
 ## 🔮 Future Enhancements
 
 - **Interview Recording & Transcripts**: Save recordings for later review and analysis

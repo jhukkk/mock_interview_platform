@@ -29,11 +29,6 @@ Whether you're preparing for a technical role, brushing up on behavioral questio
 - **Performance Optimization**: Efficient data fetching strategies and component rendering for a smooth user experience
 - **Data Integrity**: Intelligent deduplication system that maintains accurate performance history while preventing redundant entries
 
-## 🎥 Demo Video
-
-<!-- Insert your demo video here -->
-<!-- Example: ![Demo Video](link_to_your_demo_video) -->
-
 ## 🛠️ Technology Stack
 
 | Category | Technologies |
